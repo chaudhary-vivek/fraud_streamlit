@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-import plotly.express as px
 import numpy as np
 
 # Page configuration
@@ -199,73 +198,6 @@ def create_matrix_data(df):
                 matrix_data[key] = filtered_data
     
     return matrix_data
-
-def create_category_heatmap(df):
-    """Create a heatmap showing category distribution across matrix quadrants"""
-    # Create quadrant labels with descriptive names
-    df_copy = df.copy()
-    df_copy['Quadrant_Key'] = df_copy['Business Value'] + '-' + df_copy['Feasibility']
-    
-    # Map quadrant keys to descriptive names
-    quadrant_name_mapping = {
-        'High-High': '🎯 Quick Wins',
-        'High-Medium': '🚀 Major Projects', 
-        'High-Low': '⛰️ Challenges',
-        'Medium-High': '🔧 Fill-ins',
-        'Medium-Medium': '🤔 Consider Carefully',
-        'Medium-Low': '⚠️ Questionable',
-        'Low-High': '🎈 Easy Wins',
-        'Low-Medium': '🔍 Reconsider',
-        'Low-Low': '❌ Avoid'
-    }
-    
-    df_copy['Quadrant'] = df_copy['Quadrant_Key'].map(quadrant_name_mapping)
-    
-    # Create cross-tabulation
-    category_matrix = pd.crosstab(df_copy['Category'], df_copy['Quadrant'])
-    
-    # Define quadrant order for display (using descriptive names)
-    quadrant_display_order = [
-        '🎯 Quick Wins', '🚀 Major Projects', '⛰️ Challenges',
-        '🔧 Fill-ins', '🤔 Consider Carefully', '⚠️ Questionable',
-        '🎈 Easy Wins', '🔍 Reconsider', '❌ Avoid'
-    ]
-    
-    # Reorder columns if they exist
-    existing_quadrants = [q for q in quadrant_display_order if q in category_matrix.columns]
-    if existing_quadrants:
-        category_matrix = category_matrix[existing_quadrants]
-    
-    # Create heatmap using Plotly
-    fig = go.Figure(data=go.Heatmap(
-        z=category_matrix.values,
-        x=category_matrix.columns,
-        y=category_matrix.index,
-        colorscale='Blues',
-        text=category_matrix.values,
-        texttemplate="%{text}",
-        textfont={"size": 12, "color": "white"},
-        hoverongaps=False,
-        hovertemplate='<b>%{y}</b><br>Priority Level: %{x}<br>Count: %{z}<extra></extra>'
-    ))
-    
-    fig.update_layout(
-        title={
-            'text': '🗺️ Category Distribution Across Priority Levels',
-            'x': 0.5,
-            'xanchor': 'center',
-            'font': {'size': 20, 'color': '#1f77b4'}
-        },
-        xaxis_title='Priority Level',
-        yaxis_title='Fraud Category',
-        width=1200,
-        height=600,
-        font=dict(size=12),
-        xaxis=dict(tickangle=45),
-        plot_bgcolor='white'
-    )
-    
-    return fig, category_matrix
 
 def get_quadrant_info(bv, feas):
     """Get quadrant information and styling"""
@@ -563,60 +495,6 @@ def main():
         button_text = f"{quadrant['icon']} **{quadrant['title']}**\n\n**{count}** scenarios\n\n{quadrant['description']}"
         if st.button(button_text, key="low-low", help="Low Business Value & Low Feasibility", use_container_width=True):
             st.session_state.selected_quadrant = 'Low-Low'
-    
-    # ADD CATEGORY HEATMAP SECTION HERE
-    if not st.session_state.selected_quadrant:
-        st.markdown("---")
-        st.markdown("## 📊 Category Analysis")
-        
-        # Create and display the heatmap
-        heatmap_fig, category_matrix = create_category_heatmap(df)
-        st.plotly_chart(heatmap_fig, use_container_width=True)
-        
-        # Add insights below the heatmap
-        st.markdown("### 💡 Key Insights")
-        
-        # Calculate some insights
-        total_categories = len(category_matrix.index)
-        most_common_quadrant = category_matrix.sum().idxmax()
-        # Extract just the descriptive name without emoji for the metric
-        quadrant_display_name = most_common_quadrant.split(' ', 1)[1] if ' ' in most_common_quadrant else most_common_quadrant
-        
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            st.metric("Total Categories", total_categories)
-        
-        with col2:
-            st.metric("Most Populated Priority", quadrant_display_name)
-        
-        with col3:
-            max_scenarios = category_matrix.sum().max()
-            st.metric("Max Scenarios in Priority", max_scenarios)
-        
-        # Show category distribution insights
-        st.markdown("#### 🎯 Category Distribution Highlights:")
-        
-        insights_col1, insights_col2 = st.columns(2)
-        
-        with insights_col1:
-            st.markdown("**Top Categories by Priority Level:**")
-            for quadrant in category_matrix.columns:
-                if quadrant in category_matrix.columns and category_matrix[quadrant].sum() > 0:
-                    top_category = category_matrix[quadrant].idxmax()
-                    top_count = category_matrix[quadrant].max()
-                    st.markdown(f"• **{quadrant}**: {top_category} ({top_count} scenarios)")
-        
-        with insights_col2:
-            st.markdown("**Category Spread Analysis:**")
-            for category in category_matrix.index:
-                category_total = category_matrix.loc[category].sum()
-                primary_quadrant = category_matrix.loc[category].idxmax()
-                primary_count = category_matrix.loc[category].max()
-                concentration = (primary_count / category_total * 100) if category_total > 0 else 0
-                # Clean up quadrant name for display (remove emoji for cleaner text)
-                clean_quadrant = primary_quadrant.split(' ', 1)[1] if ' ' in primary_quadrant else primary_quadrant
-                st.markdown(f"• **{category}**: {concentration:.0f}% in {clean_quadrant}")
     
     # Display selected quadrant details
     if st.session_state.selected_quadrant:
